@@ -123,7 +123,7 @@ Nell'esempio che segue, il meter vituale 16 prenderà il valore dell'energia dal
 * Impostare:
  * Name (es. Bolletta)
  * Meterid (es. BLT)
- * Command "virtmet-F123 16 11 0 cost"
+ * Command "virtmet-F123 16 11 0 cost 0"
  * Unit (Euro)
  * Precision (6) - Attenzione utilizzare un numero di decimali sufficienti perchè il costo di soli 5 minuti di consumi può essere un numero decimale molto piccolo.
  
