@@ -39,7 +39,7 @@ $ cd [<directoryweb>/]metern/comapps
 $ wget https://raw.githubusercontent.com/The-Drake/virtmet/master/virtmet-F123.php
 $ wget https://raw.githubusercontent.com/The-Drake/virtmet/master/tariffa.csv
 $ sudo chmod +x virtmet-F123.php
-$ sudo ln -s /<percorsowww>/metern/comapps /usr/local/bin/virtmet-F123
+$ sudo ln -s /<percorsowww>/metern/comapps/virtmet-F123.php /usr/local/bin/virtmet-F123
 ```
 
 ### 3. Configurazione calcolo costi in bolletta
@@ -94,6 +94,7 @@ Nell'esempio che segue, il meter vituale 13 prenderà il valore dell'energia dal
 * Aumentare il numero di meter di 1 poter aggiungere e configurare il nuovo meter virtuale
 * save config
 * back
+
 #### Configure meter(s) and sensor(s) logger(s)
 * Selezionare il nuovo meter (13) in alto nella pagina
 * Impostare:
@@ -118,6 +119,7 @@ Nell'esempio che segue, il meter vituale 16 prenderà il valore dell'energia dal
 * Aumentare il numero di meter di 1 poter aggiungere e configurare il nuovo meter virtuale
 * save config
 * back
+
 #### Configure meter(s) and sensor(s) logger(s)
 * Selezionare il nuovo meter 16 in alto nella pagina
 * Impostare:
