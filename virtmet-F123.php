@@ -39,7 +39,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.1'
+$version = '0.1';
 
 // No file edit needed below: just pass the right parameters to the script
 $argvMetnum     =1;

@@ -37,7 +37,6 @@ $ wget https://raw.githubusercontent.com/The-Drake/virtmet/master/metern/0.8/scr
 ```
 $ cd [<directoryweb>/]metern/comapps
 $ wget https://raw.githubusercontent.com/The-Drake/virtmet/master/virtmet-F123.php
-$ wget https://raw.githubusercontent.com/The-Drake/virtmet/master/tariffa.csv
 $ sudo chmod +x virtmet-F123.php
 $ sudo ln -s /<percorsowww>/metern/comapps/virtmet-F123.php /usr/local/bin/virtmet-F123
 ```
