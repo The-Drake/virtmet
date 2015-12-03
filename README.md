@@ -81,6 +81,33 @@ https://github.com/The-Drake/virtmet/tree/master/tariffe
 ```
 Nell'esempio viene utilizzata la tariffa di default (D3)
 
+#### Come ricavare i costi dell'energia a partire dai dati dell'AAEG
+
+Il procedimento di calcolo è stato gentilmente spiegato da egimark. Rif.:
+http://www.energeticambiente.it/tecnica-componentistica-e-installazione/14762226-raspberry-metern-monitoraggio-energetico-valido-ed-economico-guida-87.html#post119654790
+
+Rif: http://www.autorita.energia.it/it/dati/condec.htm
+        e per l'anno 2015
+     http://www.autorita.energia.it/allegati/dati_documenti/prezzi/E2015.xls
+
+Dal foglio Excel dell'AEEG vanno prese le seguenti voci in corrispondenza della tariffa da noi utilizzata. Nell'esempio sono indicate quelle della tariffa D3 del quarto trimestre, che partono da ottobre 2015. Fra parentesi la cella del foglio Excel o il calcolo da effettuare.
+
+Ci sono tariffe diverse per ogni trimestre e andranno inserite nel file tariffa.csv premettendo la data di entrata in vigore, esempio per il 01-ott-2015->20151001
+
+```
+DVAL   = 20151001   = data di inizio validità (01-ott-2015)
+QS     = (J35)      = quota fissa servizi 44.534 €/anno
+QP     = (AC36)     = quota potenza 16.4109 €/kW/anno 
+F1PE   = (D31)      = prezzo dell'energia in F1 0.0673 €/kWh
+F23PE  = (E31)      = prezzo dell'energia in F23 0.06186 €/kWh                 
+S1PE   = (AD31-D31) = prezzo 1° scaglione (fino 1800 kWh/anno)  0,127502 €/kWh 
+S2PE   = (AD32-D31) = prezzo 2° scaglione (da 1081 a 2640)      0,144632 €/kWh
+S3PE   = (AD33-D31) = prezzo 3° scaglione (da 2641 a 4440)      0,184452 €/kWh
+S4PE   = (AD34-D31) = prezzo 4° scaglione (oltre 4440 kWh/anno) 0,227122 €/kWh
+ACCISA = 0,0227 €/kWh
+IVA    = 10% -> 0.10
+```
+
 ### 4. Configurazioni meter virtuale per il consumo secondo fascia (F1,F2,F3 o F23) in metern
 
 La configurazione viene fatta collegandosi alla pagina di amministrazine di  metern:
