@@ -96,7 +96,7 @@ Ci sono tariffe diverse per ogni trimestre e andranno inserite nel file tariffa.
 
 ```
 DVAL   = 20151001   = data di inizio validità (01-ott-2015)
-QS     = (J35)      = quota fissa servizi 44.534 €/anno
+QS     = (AC35)     = quota fissa servizi 44.534 €/anno
 QP     = (AC36)     = quota potenza 16.4109 €/kW/anno 
 F1PE   = (D31)      = prezzo dell'energia in F1 0.0673 €/kWh
 F23PE  = (E31)      = prezzo dell'energia in F23 0.06186 €/kWh                 
