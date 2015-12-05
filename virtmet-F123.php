@@ -10,7 +10,7 @@ if (isset($_SERVER['REMOTE_ADDR'])) die('Direct access not permitted');
 //      virtmeter 16 12 0 energy F23    -> met16 = met12 (only if F23)
 //
 
-// --------- COST PARAMETERS ---------------------------------------------------
+// --------- DEFAULT COST PARAMETERS ---------------------------------------------------
 
 $POTENZA = 6; // KW
 
@@ -39,7 +39,42 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.1';
+$version = '0.2';
+
+$shortopts  = '';
+$shortopts .= 'P:';     // Contractual Power (khw)
+//$shortopts .= 'v';    // Version
+//$shortopts .= 'F:';   // Fascia
+
+$longopts  = array(
+    'onlydiff',         // Output only difference from latest output
+    'plain',            // Plain output (only value)
+    'plantpower:',      // Contractual Power (khw)
+    'tariffa:',         // Use specified 'tariffe/<tariffa>.csv' file for tariffa
+);
+
+$options = getopt($shortopts, $longopts);
+//var_dump($options);
+//var_dump($argv);
+
+// Remove options from $argv array
+$pruneargv = array();
+foreach ($options as $option => $value) {
+  foreach ($argv as $key => $chunk) {
+    $regex = '/^'. (isset($option[1]) ? '--' : '-') . $option . '/';
+    if ($chunk == $value && $argv[$key-1][0] == '-' || preg_match($regex, $chunk)) {
+      array_push($pruneargv, $key);
+    }
+  }
+}
+while ($key = array_pop($pruneargv)) unset($argv[$key]);
+$argv = array_merge( $argv );
+//var_dump($argv);
+
+if (isset($options['P']))          $POTENZA = $options['P'];    
+if (isset($options['plantpower'])) $POTENZA = $options['plantpower'];    
+
+if (isset($options['tariffa'])) $filenameTariffa = 'tariffe/' . $options['tariffa'] . '.csv';
 
 // No file edit needed below: just pass the right parameters to the script
 $argvMetnum     =1;
@@ -47,7 +82,6 @@ $argvMetnumToAdd=2;
 $argvMetnumToSub=3;
 $argvEnergyPower=4;
 $argvFascia     =5;
-$argvOption     =6;
 
 $metnumtoadd  = array();
 $metnumtosub  = array();
@@ -136,13 +170,15 @@ function isFascia($tsTime, $F) {
 }
 
 
-if ( $argv[$argvMetnum] != NULL
-     && $argv[$argvMetnumToAdd] != NULL && $argv[$argvMetnumToSub] != NULL
-     && $argv[$argvEnergyPower] != NULL
-     && ($argv[$argvEnergyPower]=='energy' || $argv[$argvEnergyPower]=='power'
-      || $argv[$argvEnergyPower]=='cost')
-     && ($argv[$argvFascia]=='F1' || $argv[$argvFascia]=='F2' || $argv[$argvFascia]=='F3'
-         || $argv[$argvFascia]=='F23' || $argv[$argvFascia]=='0')) {
+if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
+    &&  $argv[$argvMetnumToSub] != NULL && $argv[$argvEnergyPower] != NULL
+    && ($argv[$argvEnergyPower]=='energy' || $argv[$argvEnergyPower]=='power' ||
+         $argv[$argvEnergyPower]=='cost' ||
+         $argv[$argvEnergyPower]=='energycost' ||
+         $argv[$argvEnergyPower]=='fixedcost')
+     && ($argv[$argvFascia]=='F1' || $argv[$argvFascia]=='F2'  ||
+         $argv[$argvFascia]=='F3' || $argv[$argvFascia]=='F23' ||
+         $argv[$argvFascia]=='0')) {
 
     $metnum = $argv[$argvMetnum];          // Virtual Meter Number
     $fascia = $argv[$argvFascia];
@@ -160,13 +196,13 @@ if ( $argv[$argvMetnum] != NULL
     $subnumlist = array();
 
     define('checkaccess', TRUE);
-    include("../config/config_main.php");
-    include("../scripts/memory.php");
+    include(__DIR__ . '/../config/config_main.php');
+    include(__DIR__ . '/../scripts/memory.php');
 
     // Read MeterN meters types and config
     for ($i = 1; $i <= $NUMMETER; $i++) {
-        if (file_exists("../config/config_met$i.php")) {
-          include("../config/config_met$i.php");
+        if (file_exists(__DIR__ . "/../config/config_met$i.php")) {
+          include(__DIR__ . "/../config/config_met$i.php");
           if (in_array ( $i, $metnumtoadd, true) && !${"SKIPMONITORING$i"}) $addnumlist[] = $i;
           if (in_array ( $i, $metnumtosub, true) && !${"SKIPMONITORING$i"}) $subnumlist[] = $i;
         }
@@ -192,7 +228,11 @@ if ( $argv[$argvMetnum] != NULL
 	    if (isset($memarray["${'METNAME'.$subnumlist[$i]}$subnumlist[$i]"]))
 	        $tosub += $memarray["${'METNAME'.$subnumlist[$i]}$subnumlist[$i]"];
 
-    } elseif ($argv[$argvEnergyPower] == 'energy' || $argv[$argvEnergyPower] == 'cost' ) {
+    } elseif ($argv[$argvEnergyPower] == 'energy'
+           || $argv[$argvEnergyPower] == 'cost' 
+           || $argv[$argvEnergyPower] == 'energycost' 
+           || $argv[$argvEnergyPower] == 'fixedcost' 
+           ) {
 
 	// Read MeterN Memory
 	@$shmid = shmop_open($MEMORY, 'a', 0, 0);
@@ -224,9 +264,11 @@ if ( $argv[$argvMetnum] != NULL
     if ($argv[$argvEnergyPower] == 'energy') {
 	$val+= isset($memarray['Totalcounter'.$metnum]) ? $memarray['Totalcounter'.$metnum] : 0;
 	$val = round($val, ${'PRECI' . $metnum});
-	if (isset($argv[$argvOption]) && $argv[$argvOption] == '--plain') $str = utf8_decode("$val");
-        else $str = utf8_decode("$ID($val*Wh)");
-    } elseif ($argv[$argvEnergyPower]=='cost') {
+	if (isset($options['plain'])) $str = utf8_decode("$val");
+        else $str = utf8_decode("$ID($val*${'UNIT'.$metnum})");
+    } elseif ($argv[$argvEnergyPower]=='cost'
+           || $argv[$argvEnergyPower]=='energycost' 
+           || $argv[$argvEnergyPower]=='fixedcost' ) {
 
         if ($val != 0) {  
           // Struttura file tariffa.csv
@@ -242,8 +284,8 @@ if ( $argv[$argvMetnum] != NULL
               $_header = array_shift($arrayFromCSV);
               array_multisort($arrayFromCSV, SORT_DESC);
               // Ricavo la tariffa in vigore
-              for ($i=1; $i< count($arrayFromCSV); $i++) {
-                if (date('Ynd')>= $arrayFromCSV[$i][0]) {
+              for ($i=0; $i<count($arrayFromCSV); $i++) {
+                if (date('Ynd') >= $arrayFromCSV[$i][0]) {
                       $_data = $arrayFromCSV[$i];
                       $data=array_combine($_header,$_data);
                       break;
@@ -279,8 +321,8 @@ if ( $argv[$argvMetnum] != NULL
           // calcolo bolletta (frazione di 5minuti)
   
           // A)  Costi fissi pro quota 5 minuti
-          $COSTO5 = $QUOTASERVIZI5 + $QUOTAPOTENZA5 ;
-          //echo "Costo5, quota fissa (Servizi + Quotapotenza di $POTENZA Kw: $COSTO5", PHP_EOL;
+          $COSTOFISSO5 = $QUOTASERVIZI5 + $QUOTAPOTENZA5 ;
+          //echo "CostoFisso5, quota fissa (Servizi + Quotapotenza di $POTENZA Kw: $COSTOFISSO5", PHP_EOL;
   
           // B) Quota energia per 5 minuti secondo fascia di tariffa richiesta
           if (fascia($calltime) == 'F1') $QE5 = $CONSUMO5 * $F1PE;
@@ -303,35 +345,60 @@ if ( $argv[$argvMetnum] != NULL
                        $CONSUMO5 - $PRO5SCAGLIONE3 : 0 ) * $S4PE ;  // Costo Energia Scaglione4
           //echo "Costo5s4, quota energia, S4: $COSTO5S4", PHP_EOL;
   
-          // Totali, accisa e IVA
-          $COSTO5PARZIALE = $COSTO5 + $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4;
-          //echo "Costo5 ($CONSUMO5 kw * 5minuti), senza accise e senza iva= $COSTO5 + $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4 = $COSTO5PARZIALE", PHP_EOL;
+          $COSTOENERGIA5 = $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4;
+          //echo "Costo Energia 5 ($CONSUMO5 kw * 5minuti), senza accise e senza iva= $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4 = $COSTOENERGIA5", PHP_EOL;
+
           $ACCISE5 = $CONSUMO5 * $ACCISA;
           //echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL;
-          $TOTALE5_NOIVA = $COSTO5PARZIALE + $ACCISE5;
+          
+          //------ Totali ------
+          
+          switch ($argv[$argvEnergyPower]) {
+                case 'cost':
+                        $TOTALE5_NOIVA = $COSTOFISSO5 + $COSTOENERGIA5 + $ACCISE5;
+                        break; 
+                case 'energycost':
+                        $TOTALE5_NOIVA = $COSTOENERGIA5 + $ACCISE5;
+                        break;
+                case 'fixedcost':
+                        $TOTALE5_NOIVA = $COSTOFISSO5;
+                        break;
+          }
+                
           $TOTALE_IVA = $TOTALE5_NOIVA * $IVA;
           //echo "IVA su $COSTO5PARZIALE = $IVA", PHP_EOL;
           $TOTALE5 = $TOTALE5_NOIVA + $TOTALE_IVA;
           //echo "Totale generale = $TOTALE5", PHP_EOL;
   
-          // Aggiorno il valore del contatore virtuale
           $val = $TOTALE5;
         }
         
-	$val+= isset($memarray['Totalcounter'.$metnum]) ? $memarray['Totalcounter'.$metnum] : 0;
+        // Aggiorno il valore del contatore virtuale
+        if (!isset($options["onlydiff"]))
+	       $val+= isset($memarray['Totalcounter'.$metnum]) ? $memarray['Totalcounter'.$metnum] : 0;
 	$val = round($val, ${'PRECI' . $metnum});
 
-	if (isset($argv[$argvOption]) && $argv[$argvOption] == '--plain') $str = utf8_decode("$val");
-        else $str = utf8_decode("$ID($val*Euro)");
+	if (isset($options["plain"])) $str = utf8_decode("$val");
+        else $str = utf8_decode("$ID($val*${'UNIT'.$metnum})");
 
     } else {
 	$val = round($val, ${'PRECI' . $metnum});
-	if (isset($argv[$argvOption]) && $argv[$argvOption] == '--plain') $str = utf8_decode("$val");
-	else $str = utf8_decode("$ID($val*W)");
+	if (isset($options["plain"])) $str = utf8_decode("$val");
+	else $str = utf8_decode("$ID($val*${'LIVEUNIT'.$metnum})");
     }
     echo "$str\n";
 
 } else {
-    die("$argv[0] $version\nUsage: $argv[0] {virtmeternum} {meternumlisttoadd|0} {meternumlisttosub|0}{energy|power|cost} {F1|F2|F3|F23|0} [--plain]\n");
+    die("virtmet v$version\n"
+        . "Usage: $argv[0] [options] {virtmeternum} {meternumlisttoadd|0} {meternumlisttosub|0} {<value>} {<fascia>}\n"
+        . "\nWhere:\n"
+        . "\t<value> \t\t\t{energy|power|cost|energycost|fixedcost}\n"
+        . "\t<fascia>\t\t\t{F1|F2|F3|F23|0}\n"
+        . "\nOptions:\n"
+        . "\t--plain\n"
+        . "\t--onlydiff\n"
+        . "\t--tariffa=<tname>\t\tWhere <tname> will point to 'tariffe/<tname>.csv' filename\n" 
+        . "\t-P, --plantpower <ppower>\tWhere <ppower> is plant contractual power in kwh\n" 
+        );
 }
 ?>
