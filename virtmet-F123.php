@@ -39,7 +39,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.1';
+$version = '0.1.1';
 
 // No file edit needed below: just pass the right parameters to the script
 $argvMetnum     =1;
@@ -242,7 +242,7 @@ if ( $argv[$argvMetnum] != NULL
               $_header = array_shift($arrayFromCSV);
               array_multisort($arrayFromCSV, SORT_DESC);
               // Ricavo la tariffa in vigore
-              for ($i=1; $i< count($arrayFromCSV); $i++) {
+              for ($i=0; $i<count($arrayFromCSV); $i++) {
                 if (date('Ynd')>= $arrayFromCSV[$i][0]) {
                       $_data = $arrayFromCSV[$i];
                       $data=array_combine($_header,$_data);
