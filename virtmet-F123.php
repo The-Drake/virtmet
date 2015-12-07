@@ -39,7 +39,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.2';
+$version = '0.2.1';
 
 $shortopts  = '';
 $shortopts .= 'P:';     // Contractual Power (khw)
@@ -97,7 +97,7 @@ if (!isset($argv[$argvFascia]))      $argv[$argvFascia]=null;
 function isFesta($tsTime) {
   $feste=Array(101, 106, 425, 501, 602, 815, 1101, 1208, 1225, 1226);
 
-  // Pasqua é sempre domenica, controllo Pasquetta
+  // Pasqua è sempre domenica, controllo Pasquetta
   if (date('Y-m-d', strtotime('+1 day', easter_date())) == date('Y-m-d', $tsTime)) return (true);
 
   // Controllo le altre feste
@@ -119,7 +119,7 @@ function isFesta($tsTime) {
 //                       ore 24.00 dal lunedì al sabato e tutte le ore della
 //                       domenica e dei giorni:
 //                              1 e 6 gennaio;
-//                              luned� dell'Angelo;
+//                              lunedì dell'Angelo;
 //                              25 aprile;
 //                              1 maggio;
 //                              2 giugno;
@@ -144,7 +144,7 @@ function fascia($tsTime) {
       return 'F3';
 
   // "23:00:00" > "07:00:00" -> Fascia F3
-  // c'� un cambio data e l'ordine dei numeri � inverso -> !
+  // c'è un cambio data e l'ordine dei numeri è inverso -> !
   if (!($ora <= "2300" && $ora > "0700"))
       return 'F3';
 
@@ -270,37 +270,54 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
            || $argv[$argvEnergyPower]=='energycost' 
            || $argv[$argvEnergyPower]=='fixedcost' ) {
 
-        if ($val != 0) {  
-          // Struttura file tariffa.csv
-          //
-          // DVAL,QS,QP,F1PE,F23PE,S1,S1PE,S2,S2PE,S3,S3PE,S4,S4PE,ACCISA,IVA
-          // 20151001,44.5340,16.4109,0.06730,0.06186,1800,0.127502,2640,0.144632,4440,0.184452,99999999,0.227122,0.0227,0.10
-          //
-          // Se esiste un file tariffa.csv, lo leggo e sovrascrivo i prezzi
-          // di default
-          //
-          if(file_exists($filenameTariffa) && is_readable($filenameTariffa)) {
-              $arrayFromCSV =  array_map('str_getcsv', file($filenameTariffa));
-              $_header = array_shift($arrayFromCSV);
-              array_multisort($arrayFromCSV, SORT_DESC);
-              // Ricavo la tariffa in vigore
-              for ($i=0; $i<count($arrayFromCSV); $i++) {
-                if (date('Ynd') >= $arrayFromCSV[$i][0]) {
-                      $_data = $arrayFromCSV[$i];
-                      $data=array_combine($_header,$_data);
-                      break;
-                }
+        // Struttura file tariffa.csv
+        //
+        // DVAL,QS,QP,F1PE,F23PE,S1,S1PE,S2,S2PE,S3,S3PE,S4,S4PE,ACCISA,IVA
+        // 20151001,44.5340,16.4109,0.06730,0.06186,1800,0.127502,2640,0.144632,4440,0.184452,99999999,0.227122,0.0227,0.10
+        //
+        // Se esiste un file tariffa.csv, lo leggo e sovrascrivo i prezzi
+        // di default
+        //
+        if(file_exists($filenameTariffa) && is_readable($filenameTariffa)) {
+            $arrayFromCSV =  array_map('str_getcsv', file($filenameTariffa));
+            $_header = array_shift($arrayFromCSV);
+            array_multisort($arrayFromCSV, SORT_DESC);
+            // Ricavo la tariffa in vigore
+            for ($i=0; $i<count($arrayFromCSV); $i++) {
+              if (date('Ynd') >= $arrayFromCSV[$i][0]) {
+                    $_data = $arrayFromCSV[$i];
+                    $data=array_combine($_header,$_data);
+                    break;
               }
-              // Leggo i dati per il calcolo
-              foreach ($data as $key => $value) {
-                ${$key} = $data[$key];
-              }
-          }
+            }
+            // Leggo i dati per il calcolo
+            foreach ($data as $key => $value) {
+              ${$key} = $data[$key];
+            }
+        }
+
+        // Divisori vari
+        $yeardays = date("z", strtotime( date('Y') . '-12-31')) + 1;
+        $year5min = $yeardays * 24 * 12;
+        //$min5in1h = 12;	// 5min in 1h
+
+        // Riporto comunque i costi fissi se sono in fascia
+        if (isFascia($calltime, $fascia)) {
+          // Quote fisse
+          $QUOTASERVIZI5 = $QS / $year5min;
+          $QUOTAPOTENZA5 = $QP * $POTENZA / $year5min;
+          //echo "Servizi=$SERVIZI5, QuotaPotenza=$QUOTAPOTENZA5", PHP_EOL;
   
-          // Divisori vari
-          $yeardays = date("z", strtotime( date('Y') . '-12-31')) + 1;
-          $year5min = $yeardays * 24 * 12;
-          //$min5in1h = 12;	// 5min in 1h
+          // A)  Costi fissi pro quota 5 minuti
+          $COSTOFISSO5 = $QUOTASERVIZI5 + $QUOTAPOTENZA5 ;
+          //echo "CostoFisso5, quota fissa (Servizi + Quotapotenza di $POTENZA Kw: $COSTOFISSO5", PHP_EOL;
+        } else {
+          $COSTOFISSO5 = 0;
+        }
+        
+        if ($val != 0) {  
+          $CONSUMO5 = $val / 1000;        // Delta consumo in kwh
+          // calcolo bolletta (frazione di 5minuti)
   
           // Soglia proquota in kwh per 5 minuti
           $PRO5SCAGLIONE1 = $S1 / $year5min;
@@ -308,22 +325,7 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
           $PRO5SCAGLIONE3 = $S3 / $year5min;
           $PRO5SCAGLIONE4 = $S4 / $year5min;
           //echo "SogliaPro5Scaglione1=$PRO5SCAGLIONE1, SogliaPro5Scaglione2=$PRO5SCAGLIONE2, SogliaPro5Scaglione3=$PRO5SCAGLIONE3", PHP_EOL;
-  
-          //$tmp = 1/$year5min;
-          //echo "year5min=$year5min, $tmp", PHP_EOL;
-  
-          // Quote fisse
-          $QUOTASERVIZI5 = $QS / $year5min;
-          $QUOTAPOTENZA5 = $QP * $POTENZA / $year5min;
-          //echo "Servizi=$SERVIZI5, QuotaPotenza=$QUOTAPOTENZA5", PHP_EOL;
-  
-          $CONSUMO5 = $val / 1000;        // Delta consumo in kwh
-          // calcolo bolletta (frazione di 5minuti)
-  
-          // A)  Costi fissi pro quota 5 minuti
-          $COSTOFISSO5 = $QUOTASERVIZI5 + $QUOTAPOTENZA5 ;
-          //echo "CostoFisso5, quota fissa (Servizi + Quotapotenza di $POTENZA Kw: $COSTOFISSO5", PHP_EOL;
-  
+
           // B) Quota energia per 5 minuti secondo fascia di tariffa richiesta
           if (fascia($calltime) == 'F1') $QE5 = $CONSUMO5 * $F1PE;
           else $QE5 = $CONSUMO5 * $F23PE;
@@ -349,30 +351,32 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
           //echo "Costo Energia 5 ($CONSUMO5 kw * 5minuti), senza accise e senza iva= $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4 = $COSTOENERGIA5", PHP_EOL;
 
           $ACCISE5 = $CONSUMO5 * $ACCISA;
-          //echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL;
-          
-          //------ Totali ------
-          
-          switch ($argv[$argvEnergyPower]) {
-                case 'cost':
-                        $TOTALE5_NOIVA = $COSTOFISSO5 + $COSTOENERGIA5 + $ACCISE5;
-                        break; 
-                case 'energycost':
-                        $TOTALE5_NOIVA = $COSTOENERGIA5 + $ACCISE5;
-                        break;
-                case 'fixedcost':
-                        $TOTALE5_NOIVA = $COSTOFISSO5;
-                        break;
-          }
-                
-          $TOTALE_IVA = $TOTALE5_NOIVA * $IVA;
-          //echo "IVA su $COSTO5PARZIALE = $IVA", PHP_EOL;
-          $TOTALE5 = $TOTALE5_NOIVA + $TOTALE_IVA;
-          //echo "Totale generale = $TOTALE5", PHP_EOL;
-  
-          $val = $TOTALE5;
+          //echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL; 
+        } else {
+          $COSTOENERGIA5 = 0;
+          $ACCISE5 = 0;
         }
         
+        //------ Totali ------          
+        switch ($argv[$argvEnergyPower]) {
+              case 'cost':
+                      $TOTALE5_NOIVA = $COSTOFISSO5 + $COSTOENERGIA5 + $ACCISE5;
+                      break; 
+              case 'energycost':
+                      $TOTALE5_NOIVA = $COSTOENERGIA5 + $ACCISE5;
+                      break;
+              case 'fixedcost':
+                      $TOTALE5_NOIVA = $COSTOFISSO5;
+                      break;
+        }
+              
+        $TOTALE_IVA = $TOTALE5_NOIVA * $IVA;
+        //echo "IVA su $COSTO5PARZIALE = $IVA", PHP_EOL;
+        $TOTALE5 = $TOTALE5_NOIVA + $TOTALE_IVA;
+        //echo "Totale generale = $TOTALE5", PHP_EOL;
+
+        $val = $TOTALE5;
+
         // Aggiorno il valore del contatore virtuale
         if (!isset($options["onlydiff"]))
 	       $val+= isset($memarray['Totalcounter'.$metnum]) ? $memarray['Totalcounter'.$metnum] : 0;
@@ -400,5 +404,7 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
         . "\t--tariffa=<tname>\t\tWhere <tname> will point to 'tariffe/<tname>.csv' filename\n" 
         . "\t-P, --plantpower <ppower>\tWhere <ppower> is plant contractual power in kwh\n" 
         );
+        
+  // Euro (€) char test
 }
 ?>
