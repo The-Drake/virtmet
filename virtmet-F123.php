@@ -39,7 +39,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.2.1';
+$version = '0.2.2';
 
 $shortopts  = '';
 $shortopts .= 'P:';     // Contractual Power (khw)
@@ -262,7 +262,8 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
     settype($val, 'float');
 
     if ($argv[$argvEnergyPower] == 'energy') {
-	$val+= isset($memarray['Totalcounter'.$metnum]) ? $memarray['Totalcounter'.$metnum] : 0;
+        if (!isset($options["onlydiff"]))
+	       $val+= isset($memarray['Totalcounter'.$metnum]) ? $memarray['Totalcounter'.$metnum] : 0;
 	$val = round($val, ${'PRECI' . $metnum});
 	if (isset($options['plain'])) $str = utf8_decode("$val");
         else $str = utf8_decode("$ID($val*${'UNIT'.$metnum})");
