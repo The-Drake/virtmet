@@ -34,12 +34,18 @@ $F1PE  = 0.06730; $F23PE = 0.06186;
 // Scaglioni e Prezzo Scaglioni 
 $S1 = 1800;       $S2 = 2640;       $S3 = 4440;       $S4 = 9999999;
 $S1PE = 0.127502; $S2PE = 0.144632; $S3PE = 0.184452; $S4PE = 0.227122;
+
+// Soglie pagamento Accise per tariffa D2
+$SAE = 1800;    // Soglia Accisa esente/anno in Kw
+$SAT = 2640;    // Soglia Accisa calcolata in quotaparte/anno in Kw
+// Per l'eccedente $SAP l'accisa si paga per tutti i Kw
+
 // Percentuali Iva e Accisa
 $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.2.2';
+$version = '0.2.3';
 
 $shortopts  = '';
 $shortopts .= 'P:';     // Contractual Power (khw)
@@ -351,8 +357,29 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
           $COSTOENERGIA5 = $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4;
           //echo "Costo Energia 5 ($CONSUMO5 kw * 5minuti), senza accise e senza iva= $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4 = $COSTOENERGIA5", PHP_EOL;
 
-          $ACCISE5 = $CONSUMO5 * $ACCISA;
-          //echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL; 
+          // D) Calcolo accise
+          if (isset($options['tariffa']) && $options['tariffa'] == 'D2') {
+              // Soglie proquota in kwh per 5 minuti
+              $PRO5ACCISAESENTE = $SAE / $year5min;
+              $PRO5ACCISAFULL   = $SAT / $year5min;
+
+              //echo "Calcolo Accisa tipo D2", PHP_EOL;
+              //echo "Soglia Esenzione: $PRO5ACCISAESENTE; Consumo ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA = " . ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA, PHP_EOL;
+              
+              // C) Calcolo esenzioni accise
+              if ($CONSUMO5 > $PRO5ACCISAESENTE && $CONSUMO5 <= $PRO5ACCISAFULL) { 
+                    $ACCISE5 = ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA;
+                    //echo "Accisa: ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA = $ACCISE5", PHP_EOL;
+              } else if ($CONSUMO5 > $PRO5ACCISAFULL) {
+                    $ACCISE5 = $CONSUMO5 * $ACCISA;
+                    //echo "Accisa full D2 = $ACCISE5", PHP_EOL;
+              }          
+          } else {
+              $ACCISE5 = $CONSUMO5 * $ACCISA;
+              //echo "Accisa full non D2 = $ACCISE5", PHP_EOL;
+              //echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL;
+          }
+          
         } else {
           $COSTOENERGIA5 = 0;
           $ACCISE5 = 0;
