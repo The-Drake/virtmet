@@ -2,7 +2,7 @@
 <?php
 if (isset($_SERVER['REMOTE_ADDR'])) die('Direct access not permitted');
 //
-// Usage: $argv[0] {virtmeternum} {meternumlisttoadd|0} {meternumlisttosub|0}{energy|power|cost} {F1|F2|F3|F23|0} [--plain]
+// Usage: $argv[0] {virtmeternum} {meternumlisttoadd|0} {meternumlisttosub|0}{energy|power|cost|fixedcost|energycost} {F1|F2|F3|F23|0} [--plain]
 //
 // eg:
 //      virtmeter 14 9,11 8 energy 0    -> met14 = met9+met11-met8
@@ -45,7 +45,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.2.3';
+$version = '0.2.4';
 
 $shortopts  = '';
 $shortopts .= 'P:';     // Contractual Power (khw)
