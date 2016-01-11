@@ -21,8 +21,7 @@ $POTENZA = 6; // KW
 //------------------------
 
 // Optional external Tariffa filename
-$filenameTariffa = 'tariffa.csv';
-//$filenameTariffa = dirname(__FILE__) . '/' . 'tariffa.csv';
+$filenameTariffa = dirname(__FILE__) . '/' . 'tariffa.csv';
 
 // If $filenameTariffa does not exist, following values will be used
 
@@ -46,7 +45,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.2.6';
+$version = '0.2.6.1';
 
 $shortopts  = '';
 $shortopts .= 'P:';     // Contractual Power (khw)
@@ -86,8 +85,7 @@ if ($debugflag) var_dump($argv);
 if (isset($options['P']))          $POTENZA = $options['P'];    
 if (isset($options['plantpower'])) $POTENZA = $options['plantpower'];    
 
-//if (isset($options['tariffa'])) $filenameTariffa = dirname(__FILE__) . '/tariffe/' . $options['tariffa'] . '.csv';
-if (isset($options['tariffa'])) $filenameTariffa = 'tariffe/' . $options['tariffa'] . '.csv';
+if (isset($options['tariffa'])) $filenameTariffa = dirname(__FILE__) . '/tariffe/' . $options['tariffa'] . '.csv';
 
 // No file edit needed below: just pass the right parameters to the script
 $argvMetnum     =1;
