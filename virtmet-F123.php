@@ -22,6 +22,7 @@ $POTENZA = 6; // KW
 
 // Optional external Tariffa filename
 $filenameTariffa = 'tariffa.csv';
+//$filenameTariffa = dirname(__FILE__) . '/' . 'tariffa.csv';
 
 // If $filenameTariffa does not exist, following values will be used
 
@@ -45,7 +46,7 @@ $ACCISA = 0.0227; $IVA=0.10;
 
 // -----------------------------------------------------------------------------
 
-$version = '0.2.4';
+$version = '0.2.6';
 
 $shortopts  = '';
 $shortopts .= 'P:';     // Contractual Power (khw)
@@ -57,11 +58,16 @@ $longopts  = array(
     'plain',            // Plain output (only value)
     'plantpower:',      // Contractual Power (khw)
     'tariffa:',         // Use specified 'tariffe/<tariffa>.csv' file for tariffa
+    'debug',           // Output debug info for internal computations
 );
 
 $options = getopt($shortopts, $longopts);
-//var_dump($options);
-//var_dump($argv);
+$debugflag=0;
+if (isset($options['debug'])) {
+        $debugflag = 1; 
+        var_dump($options);
+}
+
 
 // Remove options from $argv array
 $pruneargv = array();
@@ -75,11 +81,12 @@ foreach ($options as $option => $value) {
 }
 while ($key = array_pop($pruneargv)) unset($argv[$key]);
 $argv = array_merge( $argv );
-//var_dump($argv);
+if ($debugflag) var_dump($argv);
 
 if (isset($options['P']))          $POTENZA = $options['P'];    
 if (isset($options['plantpower'])) $POTENZA = $options['plantpower'];    
 
+//if (isset($options['tariffa'])) $filenameTariffa = dirname(__FILE__) . '/tariffe/' . $options['tariffa'] . '.csv';
 if (isset($options['tariffa'])) $filenameTariffa = 'tariffe/' . $options['tariffa'] . '.csv';
 
 // No file edit needed below: just pass the right parameters to the script
@@ -288,10 +295,13 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
         if(file_exists($filenameTariffa) && is_readable($filenameTariffa)) {
             $arrayFromCSV =  array_map('str_getcsv', file($filenameTariffa));
             $_header = array_shift($arrayFromCSV);
+            //if ($debugflag) var_dump($_header);
             array_multisort($arrayFromCSV, SORT_DESC);
+            //if ($debugflag) var_dump($arrayFromCSV);
             // Ricavo la tariffa in vigore
             for ($i=0; $i<count($arrayFromCSV); $i++) {
-              if (date('Ynd') >= $arrayFromCSV[$i][0]) {
+              //echo date('Ymd') . ' vs ' . $arrayFromCSV[$i][0], PHP_EOL;
+              if (date('Ymd') >= $arrayFromCSV[$i][0]) {
                     $_data = $arrayFromCSV[$i];
                     $data=array_combine($_header,$_data);
                     break;
@@ -299,9 +309,10 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
             }
             // Leggo i dati per il calcolo
             foreach ($data as $key => $value) {
-              ${$key} = $data[$key];
+              ${$key} = $value;
             }
         }
+        if ($debugflag) var_dump($data);
 
         // Divisori vari
         $yeardays = date("z", strtotime( date('Y') . '-12-31')) + 1;
@@ -313,11 +324,11 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
           // Quote fisse
           $QUOTASERVIZI5 = $QS / $year5min;
           $QUOTAPOTENZA5 = $QP * $POTENZA / $year5min;
-          //echo "Servizi=$SERVIZI5, QuotaPotenza=$QUOTAPOTENZA5", PHP_EOL;
+          if ($debugflag) echo "Servizi=$QUOTASERVIZI5, QuotaPotenza=$QUOTAPOTENZA5", PHP_EOL;
   
           // A)  Costi fissi pro quota 5 minuti
           $COSTOFISSO5 = $QUOTASERVIZI5 + $QUOTAPOTENZA5 ;
-          //echo "CostoFisso5, quota fissa (Servizi + Quotapotenza di $POTENZA Kw: $COSTOFISSO5", PHP_EOL;
+          if ($debugflag) echo "CostoFisso5, quota fissa (Servizi + Quotapotenza di $POTENZA Kw)= $COSTOFISSO5", PHP_EOL;
         } else {
           $COSTOFISSO5 = 0;
         }
@@ -331,31 +342,33 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
           $PRO5SCAGLIONE2 = $S2 / $year5min;
           $PRO5SCAGLIONE3 = $S3 / $year5min;
           $PRO5SCAGLIONE4 = $S4 / $year5min;
-          //echo "SogliaPro5Scaglione1=$PRO5SCAGLIONE1, SogliaPro5Scaglione2=$PRO5SCAGLIONE2, SogliaPro5Scaglione3=$PRO5SCAGLIONE3", PHP_EOL;
+          if ($debugflag) echo "SogliaPro5Scaglione1=$PRO5SCAGLIONE1, SogliaPro5Scaglione2=$PRO5SCAGLIONE2, SogliaPro5Scaglione3=$PRO5SCAGLIONE3", PHP_EOL;
 
           // B) Quota energia per 5 minuti secondo fascia di tariffa richiesta
           if (fascia($calltime) == 'F1') $QE5 = $CONSUMO5 * $F1PE;
           else $QE5 = $CONSUMO5 * $F23PE;
-          //echo "QE5, Quota energia di base ($CONSUMO5 * $FXPE) = $QE5", PHP_EOL;
+          if ($debugflag)
+                echo "QE5, Quota energia di base (CONSUMO5 * FXPE) = ($CONSUMO5 * FXPE) = $QE5", PHP_EOL;
   
           // C) Calcolo scaglioni
           $COSTO5S1 = ($CONSUMO5 > $PRO5SCAGLIONE1 ? 
-                       $PRO5SCAGLIONE1 : $CONSUMO5) * $F1PE ;	// Costo Energia Scaglione1
-          //echo "Costo5s1, quota energia, S1 ($CONSUMO5) ($PRO5SCAGLIONE1 * $FS1): $COSTO5S1", PHP_EOL;
+                       $PRO5SCAGLIONE1 : $CONSUMO5) * $S1PE ;	// Costo Energia Scaglione1
+          if ($debugflag) echo "Costo5s1, quota energia, S1 ($CONSUMO5) ($PRO5SCAGLIONE1 * $S1PE): $COSTO5S1", PHP_EOL;
           $COSTO5S2 = ($CONSUMO5 > $PRO5SCAGLIONE2 ? $PRO5SCAGLIONE2 - $PRO5SCAGLIONE1 :
                        ($CONSUMO5 > $PRO5SCAGLIONE1 ? $CONSUMO5 - $PRO5SCAGLIONE1 : 0))
                        * $S2PE ;	// Costo Energia Scaglione2
-          //echo "Costo5s2, quota energia, S2: $COSTO5S2", PHP_EOL;
+          if ($debugflag) echo "Costo5s2, quota energia, S2: $COSTO5S2", PHP_EOL;
           $COSTO5S3 = ($CONSUMO5 > $PRO5SCAGLIONE3 ? $PRO5SCAGLIONE3 - $PRO5SCAGLIONE2 : 
                        ($CONSUMO5 > $PRO5SCAGLIONE2 ? $CONSUMO5 - $PRO5SCAGLIONE2 : 0))
   		     * $S3PE ;	// Costo Energia Scaglione3
-          //echo "Costo5s3, quota energia, S3: $COSTO5S3", PHP_EOL;
+          if ($debugflag) echo "Costo5s3, quota energia, S3: $COSTO5S3", PHP_EOL;
           $COSTO5S4 = ($CONSUMO5 > $PRO5SCAGLIONE3 ?
                        $CONSUMO5 - $PRO5SCAGLIONE3 : 0 ) * $S4PE ;  // Costo Energia Scaglione4
-          //echo "Costo5s4, quota energia, S4: $COSTO5S4", PHP_EOL;
+          if ($debugflag) echo "Costo5s4, quota energia, S4: $COSTO5S4", PHP_EOL;
   
           $COSTOENERGIA5 = $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4;
-          //echo "Costo Energia 5 ($CONSUMO5 kw * 5minuti), senza accise e senza iva= $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4 = $COSTOENERGIA5", PHP_EOL;
+          if ($debugflag)
+                echo "Costo Energia 5 ($CONSUMO5 kw * 5minuti), senza accise e senza iva= $QE5 + $COSTO5S1 + $COSTO5S2 + $COSTO5S3 + $COSTO5S4 = $COSTOENERGIA5", PHP_EOL;
 
           // D) Calcolo accise
           if (isset($options['tariffa']) && $options['tariffa'] == 'D2') {
@@ -363,21 +376,21 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
               $PRO5ACCISAESENTE = $SAE / $year5min;
               $PRO5ACCISAFULL   = $SAT / $year5min;
 
-              //echo "Calcolo Accisa tipo D2", PHP_EOL;
-              //echo "Soglia Esenzione: $PRO5ACCISAESENTE; Consumo ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA = " . ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA, PHP_EOL;
+              if ($debugflag) echo "Calcolo Accisa tipo D2", PHP_EOL;
+              if ($debugflag) echo "Soglia Esenzione: $PRO5ACCISAESENTE; Consumo ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA = " . ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA, PHP_EOL;
               
               // C) Calcolo esenzioni accise
               if ($CONSUMO5 > $PRO5ACCISAESENTE && $CONSUMO5 <= $PRO5ACCISAFULL) { 
                     $ACCISE5 = ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA;
-                    //echo "Accisa: ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA = $ACCISE5", PHP_EOL;
+                    if ($debugflag) echo "Accisa: ($CONSUMO5 - $PRO5ACCISAESENTE) * $ACCISA = $ACCISE5", PHP_EOL;
               } else if ($CONSUMO5 > $PRO5ACCISAFULL) {
                     $ACCISE5 = $CONSUMO5 * $ACCISA;
-                    //echo "Accisa full D2 = $ACCISE5", PHP_EOL;
+                    if ($debugflag) echo "Accisa full D2 = $ACCISE5", PHP_EOL;
               }          
           } else {
               $ACCISE5 = $CONSUMO5 * $ACCISA;
-              //echo "Accisa full non D2 = $ACCISE5", PHP_EOL;
-              //echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL;
+              if ($debugflag) echo "Accisa full non D2 = $ACCISE5", PHP_EOL;
+              if ($debugflag) echo "Accise su $CONSUMO5 kw = $ACCISE5", PHP_EOL;
           }
           
         } else {
@@ -399,9 +412,9 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
         }
               
         $TOTALE_IVA = $TOTALE5_NOIVA * $IVA;
-        //echo "IVA su $COSTO5PARZIALE = $IVA", PHP_EOL;
+        if ($debugflag) echo "IVA su $TOTALE5_NOIVA = $TOTALE_IVA", PHP_EOL;
         $TOTALE5 = $TOTALE5_NOIVA + $TOTALE_IVA;
-        //echo "Totale generale = $TOTALE5", PHP_EOL;
+        if ($debugflag) echo "Totale generale = $TOTALE5", PHP_EOL;
 
         $val = $TOTALE5;
 
@@ -428,6 +441,7 @@ if (    $argv[$argvMetnum] != NULL && $argv[$argvMetnumToAdd] != NULL
         . "\t<fascia>\t\t\t{F1|F2|F3|F23|0}\n"
         . "\nOptions:\n"
         . "\t--plain\n"
+        . "\t--debug\n"
         . "\t--onlydiff\n"
         . "\t--tariffa=<tname>\t\tWhere <tname> will point to 'tariffe/<tname>.csv' filename\n" 
         . "\t-P, --plantpower <ppower>\tWhere <ppower> is plant contractual power in kwh\n" 
