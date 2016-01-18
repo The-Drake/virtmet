@@ -116,7 +116,7 @@ if ( $argv[1] != NULL
     echo "$str\n";
 
 } else {
-    die("virtmet v$version\n"
+    die("eflow v$version\n"
         . "Usage: $argv[0] {whout|whin|selfc} {energy|power} [--plain]\n");
 }
 ?>
