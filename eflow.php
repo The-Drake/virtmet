@@ -16,6 +16,8 @@ $whoutmet = 6; // Meter Number Immissioni (Whout)
 $selfcmet = 7; // Meter Number Autoconsumo (selfc)
 
 // No edit is needed below -----------------------------------------------------
+$version = '0.2.6.1/drk';
+
 if (!isset($argv[1],$argv[2])) $argv[1]=null;
 
 if ( $argv[1] != NULL 
@@ -30,15 +32,15 @@ if ( $argv[1] != NULL
     $val=0.0;
 
     define('checkaccess', TRUE);
-    include("../config/config_main.php");
-    include("../scripts/memory.php");
+    include(__DIR__ . '/../config/config_main.php');
+    include(__DIR__ . '/../scripts/memory.php');
 
     // Read MeterN meters types and config
     for ($i = 1; $i <= $NUMMETER; $i++) {
-        if (file_exists("../config/config_met$i.php")) {
-                include("../config/config_met$i.php");
-                if (${"PROD$i"} == 1 && ${"TYPE$i"} == 'Elect' && !${"SKIPMONITORING$i"}) $prodnumlist[] = $i;
-                if (${"PROD$i"} == 2 && ${"TYPE$i"} == 'Elect' && !${"SKIPMONITORING$i"}) $consnumlist[] = $i;
+        if (file_exists(__DIR__ . "/../config/config_met$i.php")) {
+            include(__DIR__ . "/../config/config_met$i.php");
+            if (${"PROD$i"} == 1 && ${"TYPE$i"} == 'Elect' && !${"SKIPMONITORING$i"}) $prodnumlist[] = $i;
+            if (${"PROD$i"} == 2 && ${"TYPE$i"} == 'Elect' && !${"SKIPMONITORING$i"}) $consnumlist[] = $i;
         }
     }
 
@@ -73,10 +75,14 @@ if ( $argv[1] != NULL
         }
 
         $cnt = count($prodnumlist);
-        for ($i = 0; $i < $cnt; $i++) if (isset($memarray["Diffcounter$prodnumlist[$i]"])) $prod += $memarray["Diffcounter$prodnumlist[$i]"];
+        for ($i = 0; $i < $cnt; $i++) 
+            if (isset($memarray["Diffcounter$prodnumlist[$i]"]))
+                    $prod += $memarray["Diffcounter$prodnumlist[$i]"];
 
         $cnt = count($consnumlist);
-        for ($i = 0; $i < $cnt; $i++) if (isset($memarray["Diffcounter$consnumlist[$i]"])) $cons += $memarray["Diffcounter$consnumlist[$i]"];
+        for ($i = 0; $i < $cnt; $i++)
+            if (isset($memarray["Diffcounter$consnumlist[$i]"]))
+                    $cons += $memarray["Diffcounter$consnumlist[$i]"];
 
     }
 
@@ -85,10 +91,13 @@ if ( $argv[1] != NULL
     // Computations
     if ($ID == 'whout') { // immissioni
         $val = $prod - $cons; if ($val  < 0) $val=0;
+        $valID = ${'ID' . $whoutmet};
     } elseif ($ID == 'whin') { // prelievi
         $val = $cons - $prod; if ($val < 0) $val = 0;
+        $valID = ${'ID' . $whinmet};
     } elseif ($ID == 'selfc') { // autoconsumo
         $val = ($prod > $cons) ? $cons : $prod;
+        $valID = ${'ID' . $selfcmet};
     }
 
     // Output
@@ -98,15 +107,16 @@ if ( $argv[1] != NULL
 	$val+= $memarray['Totalcounter'.${$ID.'met'}];
 	$val = round($val, ${'PRECI' . ${$ID . 'met'}});
 	if (isset($argv[3]) && $argv[3] == '--plain') $str = utf8_decode("$val");
-        else $str = utf8_decode("$ID($val*Wh)");
+        else $str = utf8_decode("$valID($val*Wh)");
     } else {
 	$val = round($val, ${'PRECI' . ${$ID . 'met'}});
 	if (isset($argv[3]) && $argv[3] == '--plain') $str = utf8_decode("$val");
-	else $str = utf8_decode("$ID($val*W)");
+	else $str = utf8_decode("$valID($val*W)");
     }
     echo "$str\n";
 
 } else {
-    die("Usage: $argv[0] {whout|whin|selfc} {energy|power} [--plain]\n");
+    die("virtmet v$version\n"
+        . "Usage: $argv[0] {whout|whin|selfc} {energy|power} [--plain]\n");
 }
 ?>
